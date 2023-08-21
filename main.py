@@ -179,7 +179,6 @@ async def cancel_add_product(callback_query: types.CallbackQuery, state: FSMCont
     await bot.send_message(callback_query.from_user.id, "Додавання продукту скасовано.")
     await state.finish()
 
-# ... (інші обробники зворотного виклику та функції)
 
 if __name__ == '__main__':
     from aiogram import executor
