@@ -71,7 +71,7 @@ async def search_and_reply(query: str, message: types.Message):
 async def handle_start(message: types.Message):
     await message.reply("Вітаю! Введіть дві букви для пошуку продуктів.")
 
-@dp.message_handler(lambda message: True, state="*")
+@dp.message_handler(lambda message: True)
 async def handle_message(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         if data.get('admin_access') == True:  # Перевіряємо, чи встановлено доступ адміністратора
@@ -102,9 +102,10 @@ async def handle_admin_button(callback_query: types.CallbackQuery, state: FSMCon
 
 @dp.callback_query_handler(lambda c: c.data == "add_product")
 async def handle_add_product(callback_query: types.CallbackQuery, state: FSMContext):
+    await Form.name.set()
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, "Режим додавання продуктів. Введіть назву продукту:")
-    await Form.next()
+
 
 @dp.message_handler(state=Form.name)
 async def process_name(message: types.Message, state: FSMContext):
