@@ -72,18 +72,24 @@ async def handle_start(message: types.Message):
     await message.reply("Вітаю! Введіть дві букви для пошуку продуктів.")
 
 @dp.message_handler(lambda message: True, state="*")
-async def handle_message(message: types.Message):
-    if message.text == admin_password:
-        keyboard_markup = types.InlineKeyboardMarkup(row_width=2)
-        admin_button = types.InlineKeyboardButton("Адміністрування", callback_data="admin_access")
-        keyboard_markup.add(admin_button)
+async def handle_message(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        if data.get('admin_access') == True:  # Перевіряємо, чи встановлено доступ адміністратора
+            if message.text.startswith("/search"):  # Якщо повідомлення починається з /search, то викликаємо пошук
+                await search_and_reply(message.text[len("/search"):], message)
+            else:
+                await message.reply("Доступ до адміністрування надано. Виберіть дію.")
+        elif message.text == admin_password:
+            keyboard_markup = types.InlineKeyboardMarkup(row_width=2)
+            admin_button = types.InlineKeyboardButton("Адміністрування", callback_data="admin_access")
+            keyboard_markup.add(admin_button)
 
-        await message.reply("Доступ до адміністрування надано. Виберіть дію:", reply_markup=keyboard_markup)
-    else:
-        await search_and_reply(message.text, message)
+            await message.reply("Доступ до адміністрування надано. Виберіть дію:", reply_markup=keyboard_markup)
+        else:
+            await search_and_reply(message.text, message)
 
 @dp.callback_query_handler(lambda c: c.data == "admin_access")
-async def handle_admin_button(callback_query: types.CallbackQuery):
+async def handle_admin_button(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
     keyboard_markup = types.InlineKeyboardMarkup(row_width=2)
     add_product_button = types.InlineKeyboardButton("Додати продукт", callback_data="add_product")
@@ -91,8 +97,11 @@ async def handle_admin_button(callback_query: types.CallbackQuery):
     keyboard_markup.add(add_product_button, remove_product_button)
     await bot.send_message(callback_query.from_user.id, "Оберіть дію:", reply_markup=keyboard_markup)
 
+    async with state.proxy() as data:
+        data['admin_access'] = True  # Оновлюємо значення для доступу адміністратора
+
 @dp.callback_query_handler(lambda c: c.data == "add_product")
-async def handle_add_product(callback_query: types.CallbackQuery):
+async def handle_add_product(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, "Режим додавання продуктів. Введіть назву продукту:")
     await Form.name.set()
@@ -102,7 +111,7 @@ async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['name'] = message.text
 
-    await Form.next()
+    await Form.next()  # Автоматичний перехід до наступного стану
     await message.reply("Введіть кількість вуглеводів у продукті:")
 
 @dp.message_handler(lambda message: message.text.replace('.', '', 1).isdigit(), state=Form.carbs)
@@ -110,7 +119,7 @@ async def process_carbs(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['carbs'] = float(message.text)
 
-    await Form.next()
+    await Form.next()  # Автоматичний перехід до наступного стану
     await message.reply("Введіть кількість хлібних одиниць у продукті:")
 
 @dp.message_handler(lambda message: message.text.replace('.', '', 1).isdigit(), state=Form.he)
