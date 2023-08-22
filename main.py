@@ -51,9 +51,9 @@ class Form(StatesGroup):
 
 async def search_and_reply(query: str, message: types.Message):
     if len(query) >= 2:
-        search_input = query
+        search_input = query.lower()  # Перетворення в нижній регістр
         query = "SELECT name, carbs, he FROM products WHERE LOWER(name) LIKE ?"
-        cursor.execute(query, ('%' + search_input.lower() + '%',))
+        cursor.execute(query, ('%' + search_input + '%',))
         results = cursor.fetchall()
 
         if results:
@@ -74,8 +74,8 @@ async def handle_start(message: types.Message):
 @dp.message_handler(lambda message: True)
 async def handle_message(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        if data.get('admin_access') == True:  # Перевіряємо, чи встановлено доступ адміністратора
-            if message.text.startswith("/search"):  # Якщо повідомлення починається з /search, то викликаємо пошук
+        if data.get('admin_access') == True:
+            if message.text.startswith("/search"):
                 await search_and_reply(message.text[len("/search"):], message)
             else:
                 await message.reply("Доступ до адміністрування надано. Виберіть дію.")
@@ -98,7 +98,7 @@ async def handle_admin_button(callback_query: types.CallbackQuery, state: FSMCon
     await bot.send_message(callback_query.from_user.id, "Оберіть дію:", reply_markup=keyboard_markup)
 
     async with state.proxy() as data:
-        data['admin_access'] = True  # Оновлюємо значення для доступу адміністратора
+        data['admin_access'] = True
 
 @dp.callback_query_handler(lambda c: c.data == "add_product")
 async def handle_add_product(callback_query: types.CallbackQuery, state: FSMContext):
@@ -106,13 +106,12 @@ async def handle_add_product(callback_query: types.CallbackQuery, state: FSMCont
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, "Режим додавання продуктів. Введіть назву продукту:")
 
-
 @dp.message_handler(state=Form.name)
 async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data['name'] = message.text
+        data['name'] = message.text.lower()  # Перетворення в нижній регістр
 
-    await Form.next()  # Автоматичний перехід до наступного стану
+    await Form.next()
     await message.reply("Введіть кількість вуглеводів у продукті:")
 
 @dp.message_handler(lambda message: message.text.replace('.', '', 1).isdigit(), state=Form.carbs)
@@ -120,7 +119,7 @@ async def process_carbs(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['carbs'] = float(message.text)
 
-    await Form.next()  # Автоматичний перехід до наступного стану
+    await Form.next()
     await message.reply("Введіть кількість хлібних одиниць у продукті:")
 
 @dp.message_handler(lambda message: message.text.replace('.', '', 1).isdigit(), state=Form.he)
@@ -140,6 +139,7 @@ async def process_he(message: types.Message, state: FSMContext):
             md.text('Назва:', md.bold(data['name'])),
             md.text('Вуглеводи:', md.bold(data['carbs'])),
             md.text('Хлібні одиниці:', data['he']),
+            md.text("Продукт додано до бази даних. Продовжуйте пошук"),
             sep='\n'
         ),
         reply_markup=markup,
@@ -153,6 +153,11 @@ async def process_he(message: types.Message, state: FSMContext):
     conn.commit()
 
     await state.finish()
+
+@dp.message_handler(lambda message: message.text == "/start")
+async def handle_start_command(message: types.Message, state: FSMContext):
+    await state.finish()
+    await handle_start(message)
 
 if __name__ == '__main__':
     from aiogram import executor
