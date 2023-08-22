@@ -1,14 +1,13 @@
-
-import sqlite3
 import logging
-import asyncio
-from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.dispatcher import FSMContext
-from aiogram.types import ParseMode, ReplyKeyboardRemove
-import aiogram.utils.markdown as md
+import sqlite3
 from configparser import ConfigParser
+import aiogram.utils.markdown as md
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.types import ParseMode, ReplyKeyboardRemove
 
 # Зчитування конфігурацій
 config = ConfigParser()
@@ -36,18 +35,19 @@ conn.commit()
 # Налаштування логування
 logging.basicConfig(level=logging.INFO)
 
-# Ініціалізація бота та диспетчера
-bot = Bot(token=bot_token)
-dp = Dispatcher(bot)
-dp.middleware.setup(LoggingMiddleware())
+# Ініціалізація MemoryStorage
+storage = MemoryStorage()
 
+# Ініціалізація бота та диспетчера з використанням MemoryStorage
+bot = Bot(token=bot_token)
+dp = Dispatcher(bot, storage=storage)
+dp.middleware.setup(LoggingMiddleware())
 
 # States
 class Form(StatesGroup):
     name = State()
     carbs = State()
     he = State()
-
 
 async def search_and_reply(query: str, message: types.Message):
     if len(query) >= 2:
@@ -67,11 +67,9 @@ async def search_and_reply(query: str, message: types.Message):
     else:
         await message.reply("Введіть ще дві букви для пошуку.")
 
-
 @dp.message_handler(commands=['start'])
 async def handle_start(message: types.Message):
     await message.reply("Вітаю! Введіть дві букви для пошуку продуктів.")
-
 
 @dp.message_handler(lambda message: True, state="*")
 async def handle_message(message: types.Message):
@@ -84,7 +82,6 @@ async def handle_message(message: types.Message):
     else:
         await search_and_reply(message.text, message)
 
-
 @dp.callback_query_handler(lambda c: c.data == "admin_access")
 async def handle_admin_button(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
@@ -94,13 +91,11 @@ async def handle_admin_button(callback_query: types.CallbackQuery):
     keyboard_markup.add(add_product_button, remove_product_button)
     await bot.send_message(callback_query.from_user.id, "Оберіть дію:", reply_markup=keyboard_markup)
 
-
 @dp.callback_query_handler(lambda c: c.data == "add_product")
 async def handle_add_product(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, "Режим додавання продуктів. Введіть назву продукту:")
     await Form.name.set()
-
 
 @dp.message_handler(state=Form.name)
 async def process_name(message: types.Message, state: FSMContext):
@@ -110,7 +105,6 @@ async def process_name(message: types.Message, state: FSMContext):
     await Form.next()
     await message.reply("Введіть кількість вуглеводів у продукті:")
 
-
 @dp.message_handler(lambda message: message.text.replace('.', '', 1).isdigit(), state=Form.carbs)
 async def process_carbs(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -118,7 +112,6 @@ async def process_carbs(message: types.Message, state: FSMContext):
 
     await Form.next()
     await message.reply("Введіть кількість хлібних одиниць у продукті:")
-
 
 @dp.message_handler(lambda message: message.text.replace('.', '', 1).isdigit(), state=Form.he)
 async def process_he(message: types.Message, state: FSMContext):
@@ -150,7 +143,6 @@ async def process_he(message: types.Message, state: FSMContext):
     conn.commit()
 
     await state.finish()
-
 
 if __name__ == '__main__':
     from aiogram import executor
