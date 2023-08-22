@@ -104,7 +104,7 @@ async def handle_admin_button(callback_query: types.CallbackQuery, state: FSMCon
 async def handle_add_product(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, "Режим додавання продуктів. Введіть назву продукту:")
-    await Form.name.set()
+    await Form.next()
 
 @dp.message_handler(state=Form.name)
 async def process_name(message: types.Message, state: FSMContext):
