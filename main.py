@@ -62,12 +62,12 @@ async def search_and_reply(query: str, message: types.Message):
             reply_text = "Результати пошуку:\n"
             for result in results:
                 name, carbs, he = result
-                reply_text += f"Назва: {name}\nКолгідрати: {carbs}\nХлібні одиниці: {he}\n\n"
+                reply_text += f"Назва: {name}\nКолгідрати (вуглеводні) на 100 грам: {carbs}\nХлібні одиниці (приблизно): {he}\n\n"
             await message.reply(reply_text)
         else:
-            await message.reply("Продукти за цими буквами не знайдені.")
+            await message.reply("Продукти за Вашим запитом не знайдені.")
     else:
-        await message.reply("Введіть ще дві букви для пошуку.")
+        await message.reply("Введіть не менше ніж дві букви для пошуку.")
 
 async def remove_product_from_database(product_name: str):
     query = "DELETE FROM products WHERE LOWER(name) = ?"
@@ -105,7 +105,7 @@ async def process_remove_name(message: types.Message, state: FSMContext):
 
 @dp.message_handler(commands=['start'])
 async def handle_start(message: types.Message):
-    await message.reply("Вітаю! Введіть дві букви для пошуку продуктів.")
+    await message.reply("Вітаю! Введіть не менше ніж дві букви для пошуку продуктів.")
 
 @dp.message_handler(lambda message: True)
 async def handle_message(message: types.Message, state: FSMContext):
@@ -129,7 +129,7 @@ async def handle_admin_button(callback_query: types.CallbackQuery, state: FSMCon
     await bot.answer_callback_query(callback_query.id)
     keyboard_markup = types.InlineKeyboardMarkup(row_width=2)
     add_product_button = types.InlineKeyboardButton("Додати продукт", callback_data="add_product")
-    remove_product_button = types.InlineKeyboardButton("Прибрати продукт", callback_data="remove_product")
+    remove_product_button = types.InlineKeyboardButton("Видалити продукт", callback_data="remove_product")
     keyboard_markup.add(add_product_button, remove_product_button)
     await bot.send_message(callback_query.from_user.id, "Оберіть дію:", reply_markup=keyboard_markup)
 
@@ -148,7 +148,7 @@ async def process_name(message: types.Message, state: FSMContext):
         data['name'] = message.text.lower()  # Перетворення в нижній регістр
 
     await Form.next()
-    await message.reply("Введіть кількість вуглеводів у продукті:")
+    await message.reply("Введіть кількість вуглеводів на 100 грам у продукті:")
 
 @dp.message_handler(lambda message: message.text.replace('.', '', 1).isdigit(), state=Form.carbs)
 async def process_carbs(message: types.Message, state: FSMContext):
