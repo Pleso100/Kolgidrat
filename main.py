@@ -43,11 +43,13 @@ bot = Bot(token=bot_token)
 dp = Dispatcher(bot, storage=storage)
 dp.middleware.setup(LoggingMiddleware())
 
-# States
 class Form(StatesGroup):
     name = State()
     carbs = State()
     he = State()
+
+class Form2(StatesGroup):
+    remove_name = State()
 
 async def search_and_reply(query: str, message: types.Message):
     if len(query) >= 2:
@@ -66,6 +68,40 @@ async def search_and_reply(query: str, message: types.Message):
             await message.reply("Продукти за цими буквами не знайдені.")
     else:
         await message.reply("Введіть ще дві букви для пошуку.")
+
+async def remove_product_from_database(product_name: str):
+    query = "DELETE FROM products WHERE LOWER(name) = ?"
+    cursor.execute(query, (product_name,))
+    conn.commit()
+
+@dp.callback_query_handler(lambda c: c.data == "remove_product")
+async def handle_remove_product(callback_query: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, "Режим видалення продуктів. Введіть назву продукту для видалення:")
+    await Form2.remove_name.set()
+
+@dp.message_handler(state=Form2.remove_name)
+async def process_remove_name(message: types.Message, state: FSMContext):
+    product_name_to_remove = message.text.strip().lower()  # Перетворення в нижній регістр та видалення зайвих пробілів
+
+    # Виклик функції для видалення продукту за його назвою
+    await remove_product_from_database(product_name_to_remove)
+
+    # Remove keyboard
+    markup = ReplyKeyboardRemove()
+
+    await bot.send_message(
+        message.chat.id,
+        md.text(
+            md.text('Назва:', md.bold(product_name_to_remove)),
+            md.text("Продукт видалено з бази даних. Продовжуйте пошук"),
+            sep='\n'
+        ),
+        reply_markup=markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+    await state.finish()
 
 @dp.message_handler(commands=['start'])
 async def handle_start(message: types.Message):
@@ -102,9 +138,9 @@ async def handle_admin_button(callback_query: types.CallbackQuery, state: FSMCon
 
 @dp.callback_query_handler(lambda c: c.data == "add_product")
 async def handle_add_product(callback_query: types.CallbackQuery, state: FSMContext):
-    await Form.name.set()
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, "Режим додавання продуктів. Введіть назву продукту:")
+    await Form.name.set()
 
 @dp.message_handler(state=Form.name)
 async def process_name(message: types.Message, state: FSMContext):
