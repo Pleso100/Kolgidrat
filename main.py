@@ -52,12 +52,12 @@ class Form(StatesGroup):
     he = State()  # Стан для отримання кількості хлібних одиниць
 
 class Form2(StatesGroup):
-    remove_name = State()  # Стан для видалення назви продукту
+    remove_name = State()  # Стан для видалення по назві продукту
 
 # Функція для пошуку продуктів за запитом і відправки результатів користувачу
 async def search_and_reply(query: str, message: types.Message):
     if len(query) >= 2:
-        search_input = query.lower()  # Перетворення в нижній регістр
+        search_input = query.lower()  # Перетворення в нижній регістр для обходу проблеми подвійних регістрів літер
         query = "SELECT name, carbs, he FROM products WHERE LOWER(name) LIKE ?"
         cursor.execute(query, ('%' + search_input + '%',))
         results = cursor.fetchall()
